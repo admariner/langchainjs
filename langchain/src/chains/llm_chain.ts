@@ -1,55 +1,97 @@
-import { BaseChain, ChainInputs } from "./base.js";
-import { BasePromptTemplate } from "../prompts/base.js";
-import { BaseLanguageModel } from "../base_language/index.js";
-import { ChainValues, Generation, BasePromptValue } from "../schema/index.js";
+import {
+  BaseLanguageModel,
+  BaseLanguageModelInterface,
+  BaseLanguageModelInput,
+} from "@langchain/core/language_models/base";
+import type { ChainValues } from "@langchain/core/utils/types";
+import type { Generation } from "@langchain/core/outputs";
+import type { BaseMessage } from "@langchain/core/messages";
+import type { BasePromptValueInterface } from "@langchain/core/prompt_values";
+import { BasePromptTemplate } from "@langchain/core/prompts";
 import {
   BaseLLMOutputParser,
   BaseOutputParser,
-} from "../schema/output_parser.js";
-import { SerializedLLMChain } from "./serde.js";
-import { CallbackManager } from "../callbacks/index.js";
+} from "@langchain/core/output_parsers";
 import {
+  CallbackManager,
   BaseCallbackConfig,
   CallbackManagerForChainRun,
   Callbacks,
-} from "../callbacks/manager.js";
+} from "@langchain/core/callbacks/manager";
+import { Runnable, type RunnableInterface } from "@langchain/core/runnables";
+import { BaseChain, ChainInputs } from "./base.js";
+import { SerializedLLMChain } from "./serde.js";
 import { NoOpOutputParser } from "../output_parsers/noop.js";
 
+type LLMType =
+  | BaseLanguageModelInterface
+  | Runnable<BaseLanguageModelInput, string>
+  | Runnable<BaseLanguageModelInput, BaseMessage>;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type CallOptionsIfAvailable<T> = T extends { CallOptions: infer CO } ? CO : any;
 /**
  * Interface for the input parameters of the LLMChain class.
  */
 export interface LLMChainInput<
   T extends string | object = string,
-  L extends BaseLanguageModel = BaseLanguageModel
+  Model extends LLMType = LLMType
 > extends ChainInputs {
   /** Prompt object to use */
   prompt: BasePromptTemplate;
   /** LLM Wrapper to use */
-  llm: L;
+  llm: Model;
   /** Kwargs to pass to LLM */
-  llmKwargs?: this["llm"]["CallOptions"];
+  llmKwargs?: CallOptionsIfAvailable<Model>;
   /** OutputParser to use */
   outputParser?: BaseLLMOutputParser<T>;
   /** Key to use for output, defaults to `text` */
   outputKey?: string;
 }
 
+function isBaseLanguageModel(llmLike: unknown): llmLike is BaseLanguageModel {
+  return typeof (llmLike as BaseLanguageModelInterface)._llmType === "function";
+}
+
+function _getLanguageModel(llmLike: RunnableInterface): BaseLanguageModel {
+  if (isBaseLanguageModel(llmLike)) {
+    return llmLike;
+  } else if ("bound" in llmLike && Runnable.isRunnable(llmLike.bound)) {
+    return _getLanguageModel(llmLike.bound);
+  } else if (
+    "runnable" in llmLike &&
+    "fallbacks" in llmLike &&
+    Runnable.isRunnable(llmLike.runnable)
+  ) {
+    return _getLanguageModel(llmLike.runnable);
+  } else if ("default" in llmLike && Runnable.isRunnable(llmLike.default)) {
+    return _getLanguageModel(llmLike.default);
+  } else {
+    throw new Error("Unable to extract BaseLanguageModel from llmLike object.");
+  }
+}
+
 /**
+ * @deprecated This class will be removed in 1.0.0. Use the LangChain Expression Language (LCEL) instead.
+ * See the example below for how to use LCEL with the LLMChain class:
+ *
  * Chain to run queries against LLMs.
  *
  * @example
  * ```ts
- * import { LLMChain } from "langchain/chains";
- * import { OpenAI } from "langchain/llms/openai";
- * import { PromptTemplate } from "langchain/prompts";
+ * import { ChatPromptTemplate } from "@langchain/core/prompts";
+ * import { ChatOpenAI } from "@langchain/openai";
  *
- * const prompt = PromptTemplate.fromTemplate("Tell me a {adjective} joke");
- * const llm = new LLMChain({ llm: new OpenAI(), prompt });
+ * const prompt = ChatPromptTemplate.fromTemplate("Tell me a {adjective} joke");
+ * const llm = new ChatOpenAI();
+ * const chain = prompt.pipe(llm);
+ *
+ * const response = await chain.invoke({ adjective: "funny" });
  * ```
  */
 export class LLMChain<
     T extends string | object = string,
-    L extends BaseLanguageModel = BaseLanguageModel
+    Model extends LLMType = LLMType
   >
   extends BaseChain
   implements LLMChainInput<T>
@@ -62,9 +104,9 @@ export class LLMChain<
 
   prompt: BasePromptTemplate;
 
-  llm: L;
+  llm: Model;
 
-  llmKwargs?: this["llm"]["CallOptions"];
+  llmKwargs?: CallOptionsIfAvailable<Model>;
 
   outputKey = "text";
 
@@ -78,7 +120,7 @@ export class LLMChain<
     return [this.outputKey];
   }
 
-  constructor(fields: LLMChainInput<T, L>) {
+  constructor(fields: LLMChainInput<T, Model>) {
     super(fields);
     this.prompt = fields.prompt;
     this.llm = fields.llm;
@@ -94,10 +136,16 @@ export class LLMChain<
     }
   }
 
+  private getCallKeys(): string[] {
+    const callKeys = "callKeys" in this.llm ? this.llm.callKeys : [];
+    return callKeys;
+  }
+
   /** @ignore */
   _selectMemoryInputs(values: ChainValues): ChainValues {
     const valuesForMemory = super._selectMemoryInputs(values);
-    for (const key of this.llm.callKeys) {
+    const callKeys = this.getCallKeys();
+    for (const key of callKeys) {
       if (key in values) {
         delete valuesForMemory[key];
       }
@@ -108,7 +156,7 @@ export class LLMChain<
   /** @ignore */
   async _getFinalOutput(
     generations: Generation[],
-    promptValue: BasePromptValue,
+    promptValue: BasePromptValueInterface,
     runManager?: CallbackManagerForChainRun
   ): Promise<unknown> {
     let finalCompletion: unknown;
@@ -130,7 +178,7 @@ export class LLMChain<
    * Wraps _call and handles memory.
    */
   call(
-    values: ChainValues & this["llm"]["CallOptions"],
+    values: ChainValues & CallOptionsIfAvailable<Model>,
     config?: Callbacks | BaseCallbackConfig
   ): Promise<ChainValues> {
     return super.call(values, config);
@@ -138,31 +186,48 @@ export class LLMChain<
 
   /** @ignore */
   async _call(
-    values: ChainValues & this["llm"]["CallOptions"],
+    values: ChainValues & CallOptionsIfAvailable<Model>,
     runManager?: CallbackManagerForChainRun
   ): Promise<ChainValues> {
     const valuesForPrompt = { ...values };
-    const valuesForLLM: this["llm"]["CallOptions"] = {
+    const valuesForLLM = {
       ...this.llmKwargs,
-    };
-    for (const key of this.llm.callKeys) {
+    } as CallOptionsIfAvailable<Model>;
+    const callKeys = this.getCallKeys();
+    for (const key of callKeys) {
       if (key in values) {
-        valuesForLLM[key as keyof this["llm"]["CallOptions"]] = values[key];
-        delete valuesForPrompt[key];
+        if (valuesForLLM) {
+          valuesForLLM[key as keyof CallOptionsIfAvailable<Model>] =
+            values[key];
+          delete valuesForPrompt[key];
+        }
       }
     }
     const promptValue = await this.prompt.formatPromptValue(valuesForPrompt);
-    const { generations } = await this.llm.generatePrompt(
-      [promptValue],
-      valuesForLLM,
+    if ("generatePrompt" in this.llm) {
+      const { generations } = await this.llm.generatePrompt(
+        [promptValue],
+        valuesForLLM,
+        runManager?.getChild()
+      );
+      return {
+        [this.outputKey]: await this._getFinalOutput(
+          generations[0],
+          promptValue,
+          runManager
+        ),
+      };
+    }
+
+    const modelWithParser = this.outputParser
+      ? this.llm.pipe(this.outputParser)
+      : this.llm;
+    const response = await modelWithParser.invoke(
+      promptValue,
       runManager?.getChild()
     );
     return {
-      [this.outputKey]: await this._getFinalOutput(
-        generations[0],
-        promptValue,
-        runManager
-      ),
+      [this.outputKey]: response,
     };
   }
 
@@ -179,7 +244,7 @@ export class LLMChain<
    * ```
    */
   async predict(
-    values: ChainValues & this["llm"]["CallOptions"],
+    values: ChainValues & CallOptionsIfAvailable<Model>,
     callbackManager?: CallbackManager
   ): Promise<T> {
     const output = await this.call(values, callbackManager);
@@ -207,10 +272,16 @@ export class LLMChain<
 
   /** @deprecated */
   serialize(): SerializedLLMChain {
+    const serialize =
+      "serialize" in this.llm ? this.llm.serialize() : undefined;
     return {
       _type: `${this._chainType()}_chain`,
-      llm: this.llm.serialize(),
+      llm: serialize,
       prompt: this.prompt.serialize(),
     };
+  }
+
+  _getNumTokens(text: string): Promise<number> {
+    return _getLanguageModel(this.llm).getNumTokens(text);
   }
 }

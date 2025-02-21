@@ -1,5 +1,13 @@
 export { BufferMemory, type BufferMemoryInput } from "./buffer_memory.js";
-export { BaseMemory, getInputValue, getBufferString } from "./base.js";
+export {
+  BaseMemory,
+  getInputValue,
+  getOutputValue,
+  getBufferString,
+  type InputValues,
+  type OutputValues,
+  type MemoryVariables,
+} from "./base.js";
 export {
   ConversationSummaryMemory,
   type ConversationSummaryMemoryInput,
@@ -13,10 +21,6 @@ export {
 export { BaseChatMemory, type BaseChatMemoryInput } from "./chat_memory.js";
 export { ChatMessageHistory } from "../stores/message/in_memory.js";
 export {
-  MotorheadMemory,
-  type MotorheadMemoryInput,
-} from "./motorhead_memory.js";
-export {
   VectorStoreRetrieverMemory,
   type VectorStoreRetrieverMemoryParams,
 } from "./vector_store.js";
@@ -27,3 +31,7 @@ export {
   ConversationSummaryBufferMemory,
   type ConversationSummaryBufferMemoryInput,
 } from "./summary_buffer.js";
+export {
+  ConversationTokenBufferMemory,
+  type ConversationTokenBufferMemoryInput,
+} from "./buffer_token_memory.js";

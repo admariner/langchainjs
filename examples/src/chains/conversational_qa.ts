@@ -1,12 +1,11 @@
-import { ChatOpenAI } from "langchain/chat_models/openai";
-import { HNSWLib } from "langchain/vectorstores/hnswlib";
-import { OpenAIEmbeddings } from "langchain/embeddings/openai";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
+import { HNSWLib } from "@langchain/community/vectorstores/hnswlib";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import * as fs from "fs";
-import { PromptTemplate } from "langchain/prompts";
-import { RunnableSequence } from "langchain/schema/runnable";
-import { Document } from "langchain/document";
-import { StringOutputParser } from "langchain/schema/output_parser";
+import { formatDocumentsAsString } from "langchain/util/document";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { RunnableSequence } from "@langchain/core/runnables";
+import { StringOutputParser } from "@langchain/core/output_parsers";
 
 /* Initialize the LLM to use to answer the question */
 const model = new ChatOpenAI({});
@@ -18,9 +17,6 @@ const docs = await textSplitter.createDocuments([text]);
 /* Create the vectorstore */
 const vectorStore = await HNSWLib.fromDocuments(docs, new OpenAIEmbeddings());
 const retriever = vectorStore.asRetriever();
-
-const serializeDocs = (docs: Array<Document>) =>
-  docs.map((doc) => doc.pageContent).join("\n\n");
 
 const formatChatHistory = (
   human: string,
@@ -61,8 +57,8 @@ const chain = RunnableSequence.from([
     chatHistory: (input: { question: string; chatHistory?: string }) =>
       input.chatHistory ?? "",
     context: async (input: { question: string; chatHistory?: string }) => {
-      const relevantDocs = await retriever.getRelevantDocuments(input.question);
-      const serialized = serializeDocs(relevantDocs);
+      const relevantDocs = await retriever.invoke(input.question);
+      const serialized = formatDocumentsAsString(relevantDocs);
       return serialized;
     },
   },

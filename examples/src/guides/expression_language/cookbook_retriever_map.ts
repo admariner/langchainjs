@@ -1,10 +1,9 @@
-import { ChatOpenAI } from "langchain/chat_models/openai";
-import { HNSWLib } from "langchain/vectorstores/hnswlib";
-import { OpenAIEmbeddings } from "langchain/embeddings/openai";
-import { PromptTemplate } from "langchain/prompts";
-import { RunnableSequence } from "langchain/schema/runnable";
-import { StringOutputParser } from "langchain/schema/output_parser";
-import { Document } from "langchain/document";
+import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
+import { HNSWLib } from "@langchain/community/vectorstores/hnswlib";
+import { formatDocumentsAsString } from "langchain/util/document";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { RunnableSequence } from "@langchain/core/runnables";
+import { StringOutputParser } from "@langchain/core/output_parsers";
 
 const model = new ChatOpenAI({});
 
@@ -28,9 +27,6 @@ type LanguageChainInput = {
   language: string;
 };
 
-const serializeDocs = (docs: Document[]) =>
-  docs.map((doc) => doc.pageContent).join("\n");
-
 const languageChain = RunnableSequence.from([
   {
     // Every property in the map receives the same input,
@@ -39,7 +35,7 @@ const languageChain = RunnableSequence.from([
     context: RunnableSequence.from([
       (input: LanguageChainInput) => input.question,
       retriever,
-      serializeDocs,
+      formatDocumentsAsString,
     ]),
     question: (input: LanguageChainInput) => input.question,
     language: (input: LanguageChainInput) => input.language,

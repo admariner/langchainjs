@@ -1,13 +1,15 @@
+import type { BaseRetrieverInterface } from "@langchain/core/retrievers";
 import { z } from "zod";
-import { CallbackManagerForToolRun } from "../../../callbacks/manager.js";
-import { BaseRetriever } from "../../../schema/retriever.js";
+import { CallbackManagerForToolRun } from "@langchain/core/callbacks/manager";
 import {
   DynamicStructuredTool,
   DynamicStructuredToolInput,
-} from "../../../tools/dynamic.js";
+} from "@langchain/core/tools";
+import { formatDocumentsAsString } from "../../../util/document.js";
 
+/** @deprecated Use "langchain/tools/retriever" instead. */
 export function createRetrieverTool(
-  retriever: BaseRetriever,
+  retriever: BaseRetrieverInterface,
   input: Omit<DynamicStructuredToolInput, "func" | "schema">
 ) {
   const func = async (
@@ -18,7 +20,7 @@ export function createRetrieverTool(
       input,
       runManager?.getChild("retriever")
     );
-    return docs.map((doc) => doc.pageContent).join("\n");
+    return formatDocumentsAsString(docs);
   };
   const schema = z.object({
     input: z

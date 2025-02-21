@@ -1,13 +1,12 @@
-import { PromptTemplate } from "langchain/prompts";
+import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
+import { HNSWLib } from "@langchain/community/vectorstores/hnswlib";
+import { formatDocumentsAsString } from "langchain/util/document";
+import { PromptTemplate } from "@langchain/core/prompts";
 import {
   RunnableSequence,
   RunnablePassthrough,
-} from "langchain/schema/runnable";
-import { Document } from "langchain/document";
-import { ChatOpenAI } from "langchain/chat_models/openai";
-import { HNSWLib } from "langchain/vectorstores/hnswlib";
-import { OpenAIEmbeddings } from "langchain/embeddings/openai";
-import { StringOutputParser } from "langchain/schema/output_parser";
+} from "@langchain/core/runnables";
+import { StringOutputParser } from "@langchain/core/output_parsers";
 
 const model = new ChatOpenAI({});
 
@@ -27,11 +26,6 @@ const answerTemplate = `Answer the question based only on the following context:
 Question: {question}
 `;
 const ANSWER_PROMPT = PromptTemplate.fromTemplate(answerTemplate);
-
-const combineDocumentsFn = (docs: Document[], separator = "\n\n") => {
-  const serializedDocs = docs.map((doc) => doc.pageContent);
-  return serializedDocs.join(separator);
-};
 
 const formatChatHistory = (chatHistory: [string, string][]) => {
   const formattedDialogueTurns = chatHistory.map(
@@ -68,7 +62,7 @@ const standaloneQuestionChain = RunnableSequence.from([
 
 const answerChain = RunnableSequence.from([
   {
-    context: retriever.pipe(combineDocumentsFn),
+    context: retriever.pipe(formatDocumentsAsString),
     question: new RunnablePassthrough(),
   },
   ANSWER_PROMPT,
