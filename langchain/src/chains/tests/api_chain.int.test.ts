@@ -1,7 +1,6 @@
 import { test } from "@jest/globals";
-import { OpenAI } from "../../llms/openai.js";
+import { OpenAI } from "@langchain/openai";
 import { LLMChain } from "../llm_chain.js";
-import { loadChain } from "../load.js";
 import { APIChain, APIChainInput } from "../api/api_chain.js";
 import {
   API_URL_PROMPT_TEMPLATE,
@@ -31,7 +30,7 @@ const testApiData = {
 };
 
 test("Test APIChain", async () => {
-  const model = new OpenAI({ modelName: "text-davinci-003" });
+  const model = new OpenAI({ modelName: "gpt-3.5-turbo-instruct" });
   const apiRequestChain = new LLMChain({
     prompt: API_URL_PROMPT_TEMPLATE,
     llm: model,
@@ -48,28 +47,23 @@ test("Test APIChain", async () => {
   };
 
   const chain = new APIChain(apiChainInput);
+  // @eslint-disable-next-line/@typescript-eslint/ban-ts-comment
+  // @ts-expect-error unused var
   const res = await chain.call({
     question: "Search for notes containing langchain",
   });
-  console.log({ res });
+  // console.log({ res });
 });
 
 test("Test APIChain fromLLMAndApiDocs", async () => {
   // This test doesn't work as well with earlier models
-  const model = new OpenAI({ modelName: "text-davinci-003" });
+  const model = new OpenAI({ modelName: "gpt-3.5-turbo-instruct" });
   const chain = APIChain.fromLLMAndAPIDocs(model, OPEN_METEO_DOCS);
+  // @eslint-disable-next-line/@typescript-eslint/ban-ts-comment
+  // @ts-expect-error unused var
   const res = await chain.call({
     question:
       "What is the weather like right now in Munich, Germany in degrees Farenheit?",
   });
-  console.log({ res });
-});
-
-test("Load APIChain from hub", async () => {
-  const chain = await loadChain("lc://chains/api/meteo/chain.json");
-  const res = await chain.call({
-    question:
-      "What is the weather like right now in Munich, Germany in degrees Farenheit?",
-  });
-  console.log({ res });
+  // console.log({ res });
 });

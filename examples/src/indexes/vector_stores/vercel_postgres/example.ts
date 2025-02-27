@@ -1,5 +1,5 @@
-import { CohereEmbeddings } from "langchain/embeddings/cohere";
-import { VercelPostgres } from "langchain/vectorstores/vercel_postgres";
+import { CohereEmbeddings } from "@langchain/cohere";
+import { VercelPostgres } from "@langchain/community/vectorstores/vercel_postgres";
 
 // Config is only required if you want to override default values.
 const config = {
@@ -16,7 +16,7 @@ const config = {
 };
 
 const vercelPostgresStore = await VercelPostgres.initialize(
-  new CohereEmbeddings(),
+  new CohereEmbeddings({ model: "embed-english-v3.0" }),
   config
 );
 
@@ -63,6 +63,32 @@ console.log(results2);
   ]
 */
 
+// Metadata filtering with IN-filters works as well
+const results3 = await vercelPostgresStore.similaritySearch(
+  "Irrelevant query, metadata filtering",
+  3,
+  {
+    topic: { in: ["science", "nonsense"] },
+  }
+);
+console.log(results3);
+/*
+  [
+    Document {
+      pageContent: 'hello',
+      metadata: { topic: 'nonsense' }
+    },
+    Document {
+      pageContent: 'hi',
+      metadata: { topic: 'nonsense' }
+    },
+    Document {
+      pageContent: 'Mitochondria is the powerhouse of the cell',
+      metadata: { topic: 'science' }
+    }
+  ]
+*/
+
 // Upserting is supported as well
 await vercelPostgresStore.addDocuments(
   [
@@ -74,11 +100,11 @@ await vercelPostgresStore.addDocuments(
   { ids: [ids[2]] }
 );
 
-const results3 = await vercelPostgresStore.similaritySearch(
+const results4 = await vercelPostgresStore.similaritySearch(
   "What is the powerhouse of the cell?",
   1
 );
-console.log(results3);
+console.log(results4);
 /*
   [
     Document {
@@ -90,14 +116,14 @@ console.log(results3);
 
 await vercelPostgresStore.delete({ ids: [ids[2]] });
 
-const results4 = await vercelPostgresStore.similaritySearch(
+const results5 = await vercelPostgresStore.similaritySearch(
   "No more metadata",
   2,
   {
     topic: "science",
   }
 );
-console.log(results4);
+console.log(results5);
 /*
   []
 */

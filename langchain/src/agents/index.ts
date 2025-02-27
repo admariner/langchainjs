@@ -2,9 +2,12 @@ export {
   Agent,
   type AgentArgs,
   BaseSingleActionAgent,
+  BaseMultiActionAgent,
+  RunnableAgent,
   LLMSingleActionAgent,
   type LLMSingleActionAgentInput,
   type OutputParserArgs,
+  type AgentRunnableSequence,
 } from "./agent.js";
 export {
   JsonToolkit,
@@ -13,7 +16,6 @@ export {
   type VectorStoreInfo,
   VectorStoreRouterToolkit,
   VectorStoreToolkit,
-  ZapierToolKit,
   createJsonAgent,
   createOpenApiAgent,
   createVectorStoreAgent,
@@ -42,6 +44,7 @@ export {
   initializeAgentExecutor,
   initializeAgentExecutorWithOptions,
   type InitializeAgentExecutorOptions,
+  type InitializeAgentExecutorOptionsStructured,
 } from "./initialize.js";
 export {
   ZeroShotAgent,
@@ -61,6 +64,8 @@ export {
   StructuredChatAgent,
   type StructuredChatAgentInput,
   type StructuredChatCreatePromptArgs,
+  type CreateStructuredChatAgentParams,
+  createStructuredChatAgent,
 } from "./structured_chat/index.js";
 export {
   StructuredChatOutputParser,
@@ -71,4 +76,29 @@ export {
   OpenAIAgent,
   type OpenAIAgentInput,
   type OpenAIAgentCreatePromptArgs,
-} from "./openai/index.js";
+  type CreateOpenAIFunctionsAgentParams,
+  createOpenAIFunctionsAgent,
+} from "./openai_functions/index.js";
+export {
+  type CreateOpenAIToolsAgentParams,
+  createOpenAIToolsAgent,
+} from "./openai_tools/index.js";
+export {
+  type CreateToolCallingAgentParams,
+  createToolCallingAgent,
+} from "./tool_calling/index.js";
+export {
+  XMLAgent,
+  type XMLAgentInput,
+  type CreateXmlAgentParams,
+  createXmlAgent,
+} from "./xml/index.js";
+export {
+  type CreateReactAgentParams,
+  createReactAgent,
+} from "./react/index.js";
+export type {
+  AgentAction,
+  AgentFinish,
+  AgentStep,
+} from "@langchain/core/agents";

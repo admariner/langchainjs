@@ -1,22 +1,17 @@
-import { HNSWLib } from "langchain/vectorstores/hnswlib";
-import { OpenAIEmbeddings } from "langchain/embeddings/openai";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { HNSWLib } from "@langchain/community/vectorstores/hnswlib";
+import { OpenAIEmbeddings, ChatOpenAI } from "@langchain/openai";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import * as fs from "fs";
+import { formatDocumentsAsString } from "langchain/util/document";
 import {
   ChatPromptTemplate,
   HumanMessagePromptTemplate,
   SystemMessagePromptTemplate,
-} from "langchain/prompts";
-import { StringOutputParser } from "langchain/schema/output_parser";
-import { Document } from "langchain/document";
-import { ChatOpenAI } from "langchain/chat_models/openai";
-import { RunnableSequence } from "langchain/schema/runnable";
+} from "@langchain/core/prompts";
+import { StringOutputParser } from "@langchain/core/output_parsers";
+import { RunnableSequence } from "@langchain/core/runnables";
 
 const text = fs.readFileSync("state_of_the_union.txt", "utf8");
-
-// Convert the relevant docs to a string and pass as context.
-const serializeDocs = (docs: Array<Document>): string =>
-  docs.map((doc) => doc.pageContent).join("\n");
 
 const query = "What did the president say about Justice Breyer?";
 
@@ -32,7 +27,7 @@ const vectorStore = await HNSWLib.fromDocuments(docs, new OpenAIEmbeddings());
 const vectorStoreRetriever = vectorStore.asRetriever();
 
 // Create a system & human prompt for the chat model
-const SYSTEM_TEMPLATE = `Use the following pieces of context to answer the users question. 
+const SYSTEM_TEMPLATE = `Use the following pieces of context to answer the users question.
 If you don't know the answer, just say that you don't know, don't try to make up an answer.
 ----------------
 {context}`;
@@ -57,7 +52,7 @@ const chain = RunnableSequence.from([
     sourceDocuments: (previousStepResult) => previousStepResult.sourceDocuments,
     question: (previousStepResult) => previousStepResult.question,
     context: (previousStepResult) =>
-      serializeDocs(previousStepResult.sourceDocuments),
+      formatDocumentsAsString(previousStepResult.sourceDocuments),
   },
   {
     result: prompt.pipe(model).pipe(new StringOutputParser()),

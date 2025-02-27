@@ -1,4 +1,5 @@
 import type { DataSource as DataSourceT, DataSourceOptions } from "typeorm";
+import { Serializable } from "@langchain/core/load/serializable";
 import {
   generateTableInfoFromTables,
   getTableAndColumnsName,
@@ -10,10 +11,23 @@ import {
   verifyIncludeTablesExistInDatabase,
   verifyListTablesExistInDatabase,
 } from "./util/sql_utils.js";
-import { Serializable } from "./load/serializable.js";
 
 export type { SqlDatabaseDataSourceParams, SqlDatabaseOptionsParams };
 
+/**
+ * Class that represents a SQL database in the LangChain framework.
+ *
+ * @security **Security Notice**
+ * This class generates SQL queries for the given database.
+ * The SQLDatabase class provides a getTableInfo method that can be used
+ * to get column information as well as sample data from the table.
+ * To mitigate risk of leaking sensitive data, limit permissions
+ * to read and scope to the tables that are needed.
+ * Optionally, use the includesTables or ignoreTables class parameters
+ * to limit which tables can/cannot be accessed.
+ *
+ * @link See https://js.langchain.com/docs/security for more information.
+ */
 export class SqlDatabase
   extends Serializable
   implements SqlDatabaseOptionsParams, SqlDatabaseDataSourceParams
